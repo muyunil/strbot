@@ -15,6 +15,9 @@ import (
 type Bds struct {
     StartPath string
     BdsChat chan <- string
+    CrashStart  bool
+    CrashStartAll  bool
+    LogFile *os.File
     Cmd *exec.Cmd
 }
 const (
@@ -24,6 +27,7 @@ const (
     mtVersion = "Version"
     mtIpv4 = "IPv4 supported"
     mtServerOk = "Server started."
+    mtStop = "Quit correctly"
     //Ez输出
     mtEzChat = "[CHAT]"
     mtEzMod = "Loading_Loaded"
@@ -45,6 +49,7 @@ const (
     CmdNo2Start = ":x:The server is running and cannot be started again"
     CmdStartOk = "Cmd.Start"
     CmdStopErr = ":x:The server shut down by mistake"
+	CrashStart = "CrashStart..."
 
     //端口为0 如服务器立即非正常关闭 请通知管理员检查端口占用
     ProtZero = ":x:The port is zero, if the error is closed, please check the port occupation\n"
@@ -71,6 +76,9 @@ var (
     StartTime  time.Time
     BdsStartTime time.Time
 )
+
+//    fmt.Fprintf(file, "abc123222\n")  // 向file对应文件中写入数据
+//    fmt.Fprintf(os.Stdout, "abc123222")  // 向控制台(标准输出设备)输出数据
 
 func (bds Bds)Start(bdsStartLock *bool) {
     if *bdsStartLock == true {
@@ -111,6 +119,10 @@ func (bds Bds)Start(bdsStartLock *bool) {
 		        return
 	        }
             fmt.Println(chat)
+            if bds.LogFile != nil{
+                // 向file中写入数据
+                fmt.Fprintf(bds.LogFile, ("BdsOut>Bds>"+chat+"\n"))
+            }
             if Rcc.Out {
                 if time.Now().Before(Rcc.Time.Add(time.Second)) {
                     bds.BdsChat <- chat
@@ -149,6 +161,10 @@ func (bds Bds)Start(bdsStartLock *bool) {
 	            bds.BdsChat <- startBds
 		        continue
 	        }
+	        if strings.Contains(chat,mtStop) {
+                bds.BdsChat <- mtStop
+		        continue
+            }
 	        if strings.Contains(chat,mtVersion) {
 	            i := strings.Index(chat,mtVersion)
 	            i2 := strings.Index(chat,"with")
@@ -192,27 +208,32 @@ bds.BdsChat <- fmt.Sprintf("%s:arrow_right:`%s`",ChatChannel,chat[i+2:len(chat)-
 	        if strings.Contains(chat,mtPc) {
 		        i := strings.Index(chat,mtPc)
 		        i2 := strings.Index(chat,",")
-                playerName :=  fmt.Sprintf("Player %s joined the server",chat[i+18:i2])
-	            bds.BdsChat <- ChatChannel + playerName
-                fmt.Println(playerName)
+                playerName :=  fmt.Sprintf(chat[i+18:i2])
+                pcPlayer :=  fmt.Sprintf("Player %s joined the server",chat[i+18:i2])
+	            bds.BdsChat <- ChatChannel + pcPlayer
+                fmt.Println(playerName,len(playerName))
                 if _, ok := Player[playerName]; !ok {
                     //No
                     PlayerAdd++
                     Player[playerName] = &sPlayer{}
                 }else{
                     //Yes
-                    Player[playerName].pc++
+//                    Player[playerName].pc++
                 }
 		        continue
 	        }
 	        if strings.Contains(chat,mtPd) {
 		        i := strings.Index(chat,mtPd)
 		        i2 := strings.Index(chat,",")
-                playerName := fmt.Sprintf("Player %s logged out of the server",chat[i+21:i2])
-	            bds.BdsChat <- ChatChannel + playerName
-                fmt.Println(playerName)
+                playerName := fmt.Sprintf(chat[i+21:i2])
+                pdPlayer := fmt.Sprintf("Player %s logged out of the server",chat[i+21:i2])
+	            bds.BdsChat <- ChatChannel + pdPlayer
+                fmt.Println(playerName,len(playerName))
+                delete(Player,playerName)
 		        continue
 	        }
+            //add code:
+//	        bds.BdsChat <- chat
         }
     }()
 
@@ -221,8 +242,18 @@ bds.BdsChat <- fmt.Sprintf("%s:arrow_right:`%s`",ChatChannel,chat[i+2:len(chat)-
         *bdsStartLock = false
 	    log.Println(CmdStopErr,err1)
 	    bds.BdsChat <- CmdStopErr
+        if bds.CrashStart {
+	        bds.BdsChat <- CrashStart
+            mc := Bds{bds.StartPath,bds.BdsChat,bds.CrashStart,bds.CrashStartAll,bds.LogFile,nil}
+            go mc.Start(bdsStartLock)
+        }
     }else{
         *bdsStartLock = false
+        if bds.CrashStartAll {
+	        bds.BdsChat <- CrashStart
+            mc := Bds{bds.StartPath,bds.BdsChat,bds.CrashStart,bds.CrashStartAll,bds.LogFile,nil}
+            go mc.Start(bdsStartLock)
+        }
     }
     Stdin.Close()
 }
@@ -247,8 +278,10 @@ func RootW(bdsShell bool, chat string) {
 	    }
 
         End:
-        //暂时打开向root频道的log输出
-        Rcc = rcc{true,time.Now()}
+        if !strings.HasPrefix(chat,"/stop") {
+            //暂时打开向root频道的log输出
+            Rcc = rcc{true,time.Now()}
+        }
     }else{
         stdin.Write([]byte(chat))
     }

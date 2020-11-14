@@ -22,19 +22,23 @@ type bot struct {
 }
 type bdsEz struct {
     CrashStart  bool  `yaml:"CrashStart"`
+    CrashStartAll bool  `yaml:"CrashStartAll"`
 	StartPath   string  `yaml:"StartPath"`
     CronBackup   string  `yaml:"CronBackup"`
 }
 type Config struct {
     Bot bot  `yaml:"bot"`
     Bds bdsEz  `yaml:"bdsEz"`
+    StrBotLog bool `yaml:"strbotlog"`
 }
 
 const (
     FileName = "strbot.yaml"
-   Data = `bdsEz:
+    Data = `strbotlog: false
+bdsEz:
   StartPath: "bedrock_server_mod.exe"
   CrashStart: false
+  CrashStartAll: false
   CronBackup: "* * * * * *"
 bot:
   GuildID: ""

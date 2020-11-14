@@ -72,6 +72,7 @@ var (
 
     S  *discordgo.Session
     Conf *config.Config
+    logFile *os.File
 
     rdChat   = make(chan string,1)
     bdsChat  = make(chan string,32)
@@ -102,6 +103,15 @@ func init() {
         initErr = true
 		return
 	}
+    if Conf.StrBotLog {
+        logFile, err = os.OpenFile("./strbot.log",os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+        if err != nil {
+            fmt.Println("open strbot.log err",err)
+            initErr = true
+            return
+        }
+    }
+
     S = dg
     fmt.Println("初始化完毕")
 }
@@ -128,7 +138,6 @@ func main() {
 	        return
         }
 
-	    fmt.Printf("[%s] %s\n", m.Author, m.Content)
 /*
         fmt.Println(">m.Id",m.Author.ID)
         fmt.Println(">m.ChannelID",m.ChannelID)
@@ -138,13 +147,19 @@ func main() {
 	    if m.GuildID != Conf.Bot.GuildID {
 		    return
 	    }
+
+	    fmt.Printf("[%s] %s\n", m.Author, m.Content)
+        if Conf.StrBotLog {
+            fmt.Fprintf(logFile, ("Discord>Main>"+m.Content+"\n"))
+        }
+
 	    if m.ChannelID == Conf.Bot.RootChannelID {
 	        if m.Content == Ps {
 		        MessageSend(true,ps.Get(Conf.Bot.ChannelTopic.ChatTopicNetCard))
                 return
 	        }
 	        if m.Content == StartBds {
-                mc := bds.Bds{Conf.Bds.StartPath,bdsChat,nil}
+                mc := bds.Bds{Conf.Bds.StartPath,bdsChat,Conf.Bds.CrashStart,Conf.Bds.CrashStartAll,logFile,nil}
 	            go mc.Start(&bdsStartLock)
                 return
 	        }
@@ -199,20 +214,24 @@ func main() {
 
     go func(){
         for chat := range bdsChat {
+            if Conf.StrBotLog{
+                // 向file中写入数据
+                fmt.Fprintf(logFile, ("BdsChat>Main>"+chat+"\n"))
+            }
 	        if strings.HasPrefix(chat,bds.ChatChannel) {
 	            MessageSend(false,chat)
 		        continue
             }
-	        if strings.Contains(chat,bds.CmdStopErr) {
-		        bdsStartLock = false
+/*	        if strings.Contains(chat,bds.CmdStopErr) {
 		        MessageSend(true,bds.CmdStopErr)
                 if Conf.Bds.CrashStart {
                     MessageSend(true,"crashStart...")
-	                mc := bds.Bds{Conf.Bds.StartPath,bdsChat,nil}
+//	                mc := bds.Bds{Conf.Bds.StartPath,bdsChat,logFile,nil}
+                mc := bds.Bds{Conf.Bds.StartPath,bdsChat,Conf.Bds.CrashStart,Conf.Bds.CrashStartAll,logFile,nil}
 	                go mc.Start(&bdsStartLock)
                 }
 		        continue
-	        }
+	        }*/
 	        if strings.Contains(chat,bds.MtBackupFileChat) {
 		        backup.BackUp(chat,backChat)
 		        continue
@@ -237,7 +256,8 @@ func main() {
             }else{
                 input, _ := inputReader.ReadString('\n')
                 if strings.Contains(input,"start") {
-                    mc := bds.Bds{Conf.Bds.StartPath,bdsChat,nil}
+//                    mc := bds.Bds{Conf.Bds.StartPath,bdsChat,logFile,nil}
+                mc := bds.Bds{Conf.Bds.StartPath,bdsChat,Conf.Bds.CrashStart,Conf.Bds.CrashStartAll,logFile,nil}
                     go mc.Start(&bdsStartLock)
                     time.Sleep(time.Second*3)
                     continue
@@ -249,6 +269,11 @@ func main() {
     sc := make(chan os.Signal, 1)
     signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
     <-sc
+    if bdsStartLock {
+        bds.RootW(false,"stop\n")
+        time.Sleep(time.Second*2)
+    }
+    logFile.Close()
     S.Close()
 }
 
