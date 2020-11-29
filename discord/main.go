@@ -297,7 +297,7 @@ func ChatChannelGameInfo() {
     for {
         fmt.Println("ChatTopicUpdate...")
         if bdsStartLock {
-            S.ChannelEditComplex(Conf.Bot.ChatChannelID,&discordgo.ChannelEdit{Topic:fmt.Sprintf("Online players:%d | A total of %d players have joined | RuningTime:%v",len(bds.Player),bds.PlayerAdd,tool.StartTime(&bds.BdsStartTime))})
+            S.ChannelEditComplex(Conf.Bot.ChatChannelID,&discordgo.ChannelEdit{Topic:fmt.Sprintf("Online players:%d|Accumulated players:%d|RuningTime:%v",len(bds.Player),bds.PlayerAdd,tool.StartTime(&bds.BdsStartTime))})
         }else{
             S.ChannelEditComplex(Conf.Bot.ChatChannelID,&discordgo.ChannelEdit{Topic:bdsNo})
         }

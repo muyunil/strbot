@@ -105,6 +105,9 @@ func (bds Bds)Start(bdsStartLock *bool) {
     bds.Cmd.Start()
     BdsStartTime = time.Now()
     *bdsStartLock = true
+    //init player...
+    Player = make(map[string]*sPlayer)
+    PlayerAdd = 0
 
     go func(){
         var (
