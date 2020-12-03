@@ -1,14 +1,12 @@
 package bds
 
 import (
-    "os"
     "io"
     "fmt"
     "log"
     "time"
     "bufio"
     "os/exec"
-    "runtime"
     "strings"
 )
 //打包cmd  以做到反复重启
@@ -16,8 +14,7 @@ type Bds struct {
     StartPath string
     BdsChat chan <- string
     CrashStart  bool
-    CrashStartAll  bool
-    LogFile *os.File
+    ZeroCrashStart  bool
     Cmd *exec.Cmd
 }
 const (
@@ -64,6 +61,7 @@ type rcc struct {
     Time time.Time
 }
 var (
+    LogChan chan string
     PlayerNameList string
     ListOk bool
     ListTF bool // 判断是root还是chat频道的命令
@@ -86,18 +84,7 @@ func (bds Bds)Start(bdsStartLock *bool) {
 	    bds.BdsChat <- CmdNo2Start
         return
     }
-    if runtime.GOOS == "windows" {
-        bds.Cmd = exec.Command(bds.StartPath)
-    }else{
-        if bds.StartPath != "bedrock_server_mod.exe" {
-            bds.Cmd = exec.Command(bds.StartPath)
-        }else{
-            bds.Cmd = exec.Command("wine64",bds.StartPath)
-            bds.Cmd.Env = os.Environ()
-            bds.Cmd.Env = append(bds.Cmd.Env, "WINEDLLOVERRIDES=vcruntime140_1,vcruntime140=n;mscoree,mshtml,explorer.exe,winemenubuilder.exe,services.exe,playplug.exe=d")
-            bds.Cmd.Env = append(bds.Cmd.Env, "WINEDEBUG=-all")
-        }
-    }
+    bds.Cmd = exec.Command(bds.StartPath)
 
     Stdout, _ := bds.Cmd.StdoutPipe()
     Stdin, _ := bds.Cmd.StdinPipe()
@@ -122,10 +109,8 @@ func (bds Bds)Start(bdsStartLock *bool) {
 		        return
 	        }
             fmt.Println(chat)
-            if bds.LogFile != nil{
-                // 向file中写入数据
-                fmt.Fprintf(bds.LogFile, ("BdsOut>Bds>"+chat+"\n"))
-            }
+            LogChan <- "bdsOut>>"+chat
+
             if Rcc.Out {
                 if time.Now().Before(Rcc.Time.Add(time.Second)) {
                     bds.BdsChat <- chat
@@ -247,14 +232,16 @@ bds.BdsChat <- fmt.Sprintf("%s:arrow_right:`%s`",ChatChannel,chat[i+2:len(chat)-
 	    bds.BdsChat <- CmdStopErr
         if bds.CrashStart {
 	        bds.BdsChat <- CrashStart
-            mc := Bds{bds.StartPath,bds.BdsChat,bds.CrashStart,bds.CrashStartAll,bds.LogFile,nil}
+//            mc := Bds{bds.StartPath,bds.BdsChat,bds.CrashStart,bds.CrashStartAll,bds.LogFile,nil}
+            mc := Bds{bds.StartPath,bds.BdsChat,bds.CrashStart,bds.ZeroCrashStart,nil}
             go mc.Start(bdsStartLock)
         }
     }else{
         *bdsStartLock = false
-        if bds.CrashStartAll {
+        if bds.ZeroCrashStart {
 	        bds.BdsChat <- CrashStart
-            mc := Bds{bds.StartPath,bds.BdsChat,bds.CrashStart,bds.CrashStartAll,bds.LogFile,nil}
+//            mc := Bds{bds.StartPath,bds.BdsChat,bds.CrashStart,bds.CrashStartAll,bds.LogFile,nil}
+            mc := Bds{bds.StartPath,bds.BdsChat,bds.CrashStart,bds.ZeroCrashStart,nil}
             go mc.Start(bdsStartLock)
         }
     }

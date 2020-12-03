@@ -25,25 +25,8 @@ const (
     LsBd = "lsbd"
     StartBds = "start"
     Backup = "backup"
-    cnHelp = "帮助"
-    cnRetHelp = `管理员命令:
-    <ps> :查看服务器状态
-    <start> :启动bds
-    <stop> :关闭bds
-    <backup> :备份worlds(bds未启动时无法使用)
-    <lsbd> :查看今天的备份存档列表
-        可选附加time查看其他日期的备份列表如：
-        <lsbd 10/10> :即为查看10月10号的备份列表
-    <rd name-time> :<lsbd>获取备份列表选一个执行如：
-        <rd worlds-2020-10-10_10-10-10>
-        即为回滚到此name-time指向的备份存档
-        ps:bds运行时无法回滚！
-    <wl> 白名单命令可选操作：
-        <wl + tes  tID>  <wl - tes  tID> :id自动附带""
-    </ cmd> :/ 开头的命令会发送给bds控制台如：
-        </ say HelloWorlds>`
-    usHelp = "help"
-    usRetHelp = `Root Cmd:
+    Help = "help"
+    RetHelp = `Root Cmd:
     <ps> :View server status
     <start> :Start Bds
     <stop> :Stop Bds
@@ -72,15 +55,15 @@ var (
 
     S  *discordgo.Session
     Conf *config.Config
-    logFile *os.File
 
-    rdChat   = make(chan string,1)
-    bdsChat  = make(chan string,32)
     backChat = make(chan string)
+    rdChat   = make(chan string,1)
+    logChan  = make(chan string,16)
+    bdsChat  = make(chan string,32)
 )
 
 func init() {
-    fmt.Println("正在加载strbot.yaml...")
+    fmt.Print("strbot.yaml... ")
     var Nil bool
     Conf, Nil = config.YamlConfig()
     if Nil {
@@ -88,8 +71,8 @@ func init() {
         initErr = true
         return
     }
-    fmt.Println("加载配置完毕")
-    fmt.Println("正在初始化DiscordBot...")
+    fmt.Println("ok")
+    fmt.Print("init DiscordBot... ")
 	dg, err := discordgo.New("Bot " + Conf.Bot.Token)
 	if err != nil {
 		fmt.Println("error creating Discord session,", err)
@@ -104,16 +87,19 @@ func init() {
 		return
 	}
     if Conf.StrBotLog {
-        logFile, err = os.OpenFile("./strbot.log",os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+        tool.LogFile, err = os.OpenFile("./strbot.log",os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
         if err != nil {
             fmt.Println("open strbot.log err",err)
             initErr = true
             return
         }
+        tool.StrBotLog = true
     }
+    bds.LogChan = logChan
+    go tool.Log(logChan)
 
     S = dg
-    fmt.Println("初始化完毕")
+    fmt.Println("ok")
 }
 func main() {
     if initErr {
@@ -149,9 +135,7 @@ func main() {
 	    }
 
 	    fmt.Printf("[%s] %s\n", m.Author, m.Content)
-        if Conf.StrBotLog {
-            fmt.Fprintf(logFile, ("Discord>Main>"+m.Content+"\n"))
-        }
+        logChan <- "disChat>>"+m.Content
 
 	    if m.ChannelID == Conf.Bot.RootChannelID {
 	        if m.Content == Ps {
@@ -159,7 +143,7 @@ func main() {
                 return
 	        }
 	        if m.Content == StartBds {
-                mc := bds.Bds{Conf.Bds.StartPath,bdsChat,Conf.Bds.CrashStart,Conf.Bds.CrashStartAll,logFile,nil}
+                mc := bds.Bds{Conf.Bds.StartPath,bdsChat,Conf.Bds.CrashStart,Conf.Bds.ZeroCrashStart,nil}
 	            go mc.Start(&bdsStartLock)
                 return
 	        }
@@ -186,12 +170,8 @@ func main() {
                 }
                 return
             }
-	        if m.Content == cnHelp {
-		        MessageSend(true,cnRetHelp)
-                return
-	        }
-	        if m.Content == usHelp {
-		        MessageSend(true,usRetHelp)
+	        if m.Content == Help {
+		        MessageSend(true,RetHelp)
                 return
 	        }
             if bdsStartLock {
@@ -214,24 +194,11 @@ func main() {
 
     go func(){
         for chat := range bdsChat {
-            if Conf.StrBotLog{
-                // 向file中写入数据
-                fmt.Fprintf(logFile, ("BdsChat>Main>"+chat+"\n"))
-            }
+           logChan <- "bdsChat>>"+chat
 	        if strings.HasPrefix(chat,bds.ChatChannel) {
 	            MessageSend(false,chat)
 		        continue
             }
-/*	        if strings.Contains(chat,bds.CmdStopErr) {
-		        MessageSend(true,bds.CmdStopErr)
-                if Conf.Bds.CrashStart {
-                    MessageSend(true,"crashStart...")
-//	                mc := bds.Bds{Conf.Bds.StartPath,bdsChat,logFile,nil}
-                mc := bds.Bds{Conf.Bds.StartPath,bdsChat,Conf.Bds.CrashStart,Conf.Bds.CrashStartAll,logFile,nil}
-	                go mc.Start(&bdsStartLock)
-                }
-		        continue
-	        }*/
 	        if strings.Contains(chat,bds.MtBackupFileChat) {
 		        backup.BackUp(chat,backChat)
 		        continue
@@ -242,7 +209,7 @@ func main() {
 
     go func () {
         inputReader := bufio.NewReader(os.Stdin)
-        fmt.Println("本地控制台已启动,start运行bds")
+        fmt.Println("cmd ok! <start> run bds")
         var input string
 	    for {
             if bdsStartLock {
@@ -250,14 +217,16 @@ func main() {
                 fmt.Println(len(input))
                 bds.RootW(false,input)
                 if strings.Contains(input,"stop") {
-                time.Sleep(time.Second*3)
+                    time.Sleep(time.Second*2)
                 }
                 continue
             }else{
                 input, _ := inputReader.ReadString('\n')
                 if strings.Contains(input,"start") {
-//                    mc := bds.Bds{Conf.Bds.StartPath,bdsChat,logFile,nil}
-                mc := bds.Bds{Conf.Bds.StartPath,bdsChat,Conf.Bds.CrashStart,Conf.Bds.CrashStartAll,logFile,nil}
+                    if len(input) > 7 {
+                        continue
+                    }
+                mc := bds.Bds{Conf.Bds.StartPath,bdsChat,Conf.Bds.CrashStart,Conf.Bds.ZeroCrashStart,nil}
                     go mc.Start(&bdsStartLock)
                     time.Sleep(time.Second*3)
                     continue
@@ -273,7 +242,7 @@ func main() {
         bds.RootW(false,"stop\n")
         time.Sleep(time.Second*2)
     }
-    logFile.Close()
+    tool.LogFile.Close()
     S.Close()
 }
 
