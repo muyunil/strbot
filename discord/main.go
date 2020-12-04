@@ -29,7 +29,6 @@ const (
     RetHelp = `Root Cmd:
     <ps> :View server status
     <start> :Start Bds
-    <stop> :Stop Bds
     <backup> :Backup Worlds (Bds Not available when not running)
     <lsbd> :View today's backup archive list
         You can view the backup archives of other dates with parameters, example：
@@ -41,7 +40,7 @@ const (
     <wl> whitelist Add/remove, example：
         <wl + tes  tID>  <wl - tes  tID> :Comes with "" by default
     </cmd> : example:
-    	/say hello, /stop.
+    	</say hello>, </stop>.
 	`
 
     //服务器未运行
@@ -56,7 +55,7 @@ var (
     S  *discordgo.Session
     Conf *config.Config
 
-    backChat = make(chan string)
+    backChan = make(chan string)
     rdChat   = make(chan string,1)
     logChan  = make(chan string,16)
     bdsChat  = make(chan string,32)
@@ -70,6 +69,12 @@ func init() {
         fmt.Println(config.ConfNil)
         initErr = true
         return
+    }else{
+        bds.BdsChat = bdsChat
+        bds.BackChan = backChan
+        bds.StartPath = Conf.Bds.StartPath
+        bds.CrashStart = Conf.Bds.CrashStart
+        bds.ZeroCrashStart = Conf.Bds.ZeroCrashStart
     }
     fmt.Println("ok")
     fmt.Print("init DiscordBot... ")
@@ -86,7 +91,7 @@ func init() {
         initErr = true
 		return
 	}
-    if Conf.StrBotLog {
+    if Conf.LogFile {
         tool.LogFile, err = os.OpenFile("./strbot.log",os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
         if err != nil {
             fmt.Println("open strbot.log err",err)
@@ -97,8 +102,8 @@ func init() {
     }else{
         go tool.Log(false,logChan)
     }
-    bds.LogChan = logChan
 
+    bds.LogChan = logChan
     S = dg
     fmt.Println("ok")
 }
@@ -144,7 +149,7 @@ func main() {
                 return
 	        }
 	        if m.Content == StartBds {
-                mc := bds.Bds{Conf.Bds.StartPath,bdsChat,Conf.Bds.CrashStart,Conf.Bds.ZeroCrashStart,nil}
+                mc := bds.Bds{}
 	            go mc.Start(&bdsStartLock)
                 return
 	        }
@@ -201,7 +206,7 @@ func main() {
 		        continue
             }
 	        if strings.Contains(chat,bds.MtBackupFileChat) {
-		        backup.BackUp(chat,backChat)
+		        backup.BackUp(chat,backChan)
 		        continue
 	        }
             MessageSend(true,chat)
@@ -227,7 +232,7 @@ func main() {
                     if len(input) > 7 {
                         continue
                     }
-                mc := bds.Bds{Conf.Bds.StartPath,bdsChat,Conf.Bds.CrashStart,Conf.Bds.ZeroCrashStart,nil}
+                    mc := bds.Bds{}
                     go mc.Start(&bdsStartLock)
                     time.Sleep(time.Second*3)
                     continue
@@ -287,7 +292,7 @@ func mCron(setCron string){
 func mBackup() {
     if bdsStartLock {
         if ps.HdTF() {
-           go bds.Back(backChat,bdsChat,&backupLock)
+           go bds.Back(&backupLock)
 	    }else{
             MessageSend(true,ps.HdErr)
 	    }

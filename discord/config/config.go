@@ -27,7 +27,7 @@ type bdsEz struct {
     CronBackup   string  `yaml:"CronBackup"`
 }
 type Config struct {
-    StrBotLog bool `yaml:"logFile"`
+    LogFile bool `yaml:"logFile"`
     Bot bot  `yaml:"bot"`
     Bds bdsEz  `yaml:"bdsEz"`
 }

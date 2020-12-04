@@ -9,12 +9,8 @@ import (
     "os/exec"
     "strings"
 )
-//打包cmd  以做到反复重启
 type Bds struct {
-    StartPath string
-    BdsChat chan <- string
-    CrashStart  bool
-    ZeroCrashStart  bool
+//打包cmd  以做到反复重启
     Cmd *exec.Cmd
 }
 const (
@@ -46,7 +42,7 @@ const (
     CmdNo2Start = ":x:The server is running and cannot be started again"
     CmdStartOk = "Cmd.Start"
     CmdStopErr = ":x:The server shut down by mistake"
-	CrashStart = "CrashStart..."
+	RetCrashStart = "CrashStart..."
 
     //端口为0 如服务器立即非正常关闭 请通知管理员检查端口占用
     ProtZero = ":x:The port is zero, if the error is closed, please check the port occupation\n"
@@ -61,27 +57,33 @@ type rcc struct {
     Time time.Time
 }
 var (
+    StartPath string
+    CrashStart  bool
+    ZeroCrashStart  bool
+    BdsChat chan string
     LogChan chan string
+
     PlayerNameList string
     ListOk bool
     ListTF bool // 判断是root还是chat频道的命令
     backupQuery bool
 
-    Player = make(map[string]*sPlayer)
+    Rcc rcc
     PlayerAdd int
     stdin io.WriteCloser
-    Rcc rcc
     StartTime  time.Time
     BdsStartTime time.Time
+    Player = make(map[string]*sPlayer)
 )
 
 func (bds Bds)Start(bdsStartLock *bool) {
     if *bdsStartLock == true {
 	//服务器正在运行 无法再次启动
-	    bds.BdsChat <- CmdNo2Start
+	    BdsChat <- CmdNo2Start
         return
     }
-    bds.Cmd = exec.Command(bds.StartPath)
+
+    bds.Cmd = exec.Command(StartPath)
 
     Stdout, _ := bds.Cmd.StdoutPipe()
     Stdin, _ := bds.Cmd.StdinPipe()
@@ -91,7 +93,6 @@ func (bds Bds)Start(bdsStartLock *bool) {
     *bdsStartLock = true
     //init player...
     Player = make(map[string]*sPlayer)
-//    PlayerAdd = 0
 
     go func(){
         var (
@@ -110,17 +111,17 @@ func (bds Bds)Start(bdsStartLock *bool) {
 
             if Rcc.Out {
                 if time.Now().Before(Rcc.Time.Add(time.Second)) {
-                    bds.BdsChat <- chat
+                    BdsChat <- chat
                 }else{
                     Rcc.Out = false
                 }
             }
 	        if ListOk && ListTF {
 		        if PlayerNameList == "" {
-		            bds.BdsChat <- ChatChannel + listZero
+		            BdsChat <- ChatChannel + listZero
 		            ListOk = false
 		        }else{
-		            bds.BdsChat <- ChatChannel + "Player list: " + PlayerNameList + "\n" + chat
+		            BdsChat <- ChatChannel + "Player list: " + PlayerNameList + "\n" + chat
 		            ListOk = false
                 }
                 ListTF = false
@@ -136,18 +137,18 @@ func (bds Bds)Start(bdsStartLock *bool) {
 	        }
 	        if strings.Contains(chat,MtBackupFileChat) {
                 if backupQuery {
-                    bds.BdsChat <- chat
+                    BdsChat <- chat
                     backupQuery = false
                 }
 		        continue
 	        }
 	        if strings.Contains(chat,mtStarting) {
 		        //startBds = 启动服务器
-	            bds.BdsChat <- startBds
+	            BdsChat <- startBds
 		        continue
 	        }
 	        if strings.Contains(chat,mtStop) {
-                bds.BdsChat <- mtStop
+                BdsChat <- mtStop
 		        continue
             }
 	        if strings.Contains(chat,mtVersion) {
@@ -160,22 +161,22 @@ func (bds Bds)Start(bdsStartLock *bool) {
 		        chat = strings.TrimSpace(chat)
 	            i := strings.Index(chat,mtIpv4)
 		        if chat[i+22:] == "0" {
-                    bds.BdsChat <- ProtZero + chat[i:]
+                    BdsChat <- ProtZero + chat[i:]
 		        }else{
 		            startChat += "Port" + chat[i:i+4] + chat[i+20:] + "\n"
                     startChat += fmt.Sprintf("EzMod cap:%d len:%d", ezModSize,ezModLen)
-		            bds.BdsChat <- startChat
+		            BdsChat <- startChat
 		        }
 		        continue
 	        }
 	        if strings.Contains(chat,mtServerOk) {
 		        //startOk = 启动成功
-	            bds.BdsChat <- startOk
+	            BdsChat <- startOk
 		        continue
 	        }
 	        if strings.Contains(chat,mtEzChat) {
 		        i := strings.Index(chat,")")
-bds.BdsChat <- fmt.Sprintf("%s:arrow_right:`%s`",ChatChannel,chat[i+2:len(chat)-2])
+BdsChat <- fmt.Sprintf("%s:arrow_right:`%s`",ChatChannel,chat[i+2:len(chat)-2])
 		        continue
 	        }
 	        if strings.Contains(chat,mtPdList) {
@@ -196,7 +197,7 @@ bds.BdsChat <- fmt.Sprintf("%s:arrow_right:`%s`",ChatChannel,chat[i+2:len(chat)-
 		        i2 := strings.Index(chat,",")
                 playerName :=  fmt.Sprintf(chat[i+18:i2])
                 pcPlayer :=  fmt.Sprintf("Player %s joined the server",chat[i+18:i2])
-	            bds.BdsChat <- ChatChannel + pcPlayer
+	            BdsChat <- ChatChannel + pcPlayer
                 fmt.Println(playerName,len(playerName))
                 if _, ok := Player[playerName]; !ok {
                     //No
@@ -212,7 +213,7 @@ bds.BdsChat <- fmt.Sprintf("%s:arrow_right:`%s`",ChatChannel,chat[i+2:len(chat)-
 		        i2 := strings.Index(chat,",")
                 playerName := fmt.Sprintf(chat[i+21:i2])
                 pdPlayer := fmt.Sprintf("Player %s logged out of the server",chat[i+21:i2])
-	            bds.BdsChat <- ChatChannel + pdPlayer
+	            BdsChat <- ChatChannel + pdPlayer
                 fmt.Println(playerName,len(playerName))
                 delete(Player,playerName)
 		        continue
@@ -224,17 +225,17 @@ bds.BdsChat <- fmt.Sprintf("%s:arrow_right:`%s`",ChatChannel,chat[i+2:len(chat)-
     if err1 != nil {
         *bdsStartLock = false
 	    log.Println(CmdStopErr,err1)
-	    bds.BdsChat <- CmdStopErr
-        if bds.CrashStart {
-	        bds.BdsChat <- CrashStart
-            mc := Bds{bds.StartPath,bds.BdsChat,bds.CrashStart,bds.ZeroCrashStart,nil}
+	    BdsChat <- CmdStopErr
+        if CrashStart {
+	        BdsChat <- RetCrashStart
+            mc := Bds{}
             go mc.Start(bdsStartLock)
         }
     }else{
         *bdsStartLock = false
-        if bds.ZeroCrashStart {
-	        bds.BdsChat <- CrashStart
-            mc := Bds{bds.StartPath,bds.BdsChat,bds.CrashStart,bds.ZeroCrashStart,nil}
+        if ZeroCrashStart {
+	        BdsChat <- RetCrashStart
+            mc := Bds{}
             go mc.Start(bdsStartLock)
         }
     }
@@ -303,10 +304,13 @@ const (
     cmdQuery = "save query\n"
     cmdResume = "save resume\n"
 )
-func Back(backChat chan string,bdsChat chan string,backupLock *bool) {
+var (
+    BackChan chan string
+)
+func Back(backupLock *bool) {
     if *backupLock != true {
         *backupLock = true
-	    bdsChat <- BackupGo
+	    BdsChat <- BackupGo
         stdin.Write([]byte(startBackup))
         stdin.Write([]byte(cmdHold))
         //等待3s
@@ -314,17 +318,17 @@ func Back(backChat chan string,bdsChat chan string,backupLock *bool) {
         backupQuery = true
         stdin.Write([]byte(backuping))
         stdin.Write([]byte(cmdQuery))
-        if str := <-backChat;str != "" {
-            bdsChat <- str
+        if str := <-BackChan;str != "" {
+            BdsChat <- str
         }
         stdin.Write([]byte(backupStop))
         stdin.Write([]byte(cmdResume))
-        if str := <-backChat;str != "" {
-            bdsChat <- str
+        if str := <-BackChan;str != "" {
+            BdsChat <- str
         }
         *backupLock = false
-        bdsChat <- BackupEnd
+        BdsChat <- BackupEnd
     }else{
-	    bdsChat <- BackupErr
+	    BdsChat <- BackupErr
     }
 }
