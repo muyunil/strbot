@@ -25,18 +25,18 @@ Cron *  *  *  *  *  *
 管理员命令:   
      ps :查看服务器状态  
      start :启动bds  
-     stop :关闭bds
-     backup :备份worlds(bds未启动时无法使用)
-     lsbd :查看今天的备份存档列表
-        可选附加time查看其他日期的备份列表如：
-            lsbd 10/10 :即为查看10月10号的备份列表
-     rd name-time :lsbd 获取备份列表选一个执行>    如：
-        rd worlds-2020-10-10_10-10-10
-        即为回滚到此name-time指向的备份存档
-        ps:bds运行时无法回滚
-    wl 白名单命令可选操作：
-        wl + tes  tID | wl - tes  tID :id自动附带""
-    /cmd :/ 开头的命令会发送给bds控制台如
-        /say HelloWorlds
-        /stop
+     stop :关闭bds  
+     backup :备份worlds(bds未启动时无法使用)  
+     lsbd :查看今天的备份存档列表  
+        可选附加time查看其他日期的备份列表如：   
+            lsbd 10/10 :即为查看10月10号的备份列表  
+     rd name-time :lsbd 获取备份列表选一个执行>    如：  
+        rd worlds-2020-10-10_10-10-10  
+        即为回滚到此name-time指向的备份存档  
+        ps:bds运行时无法回滚  
+    wl 白名单命令可选操作：  
+        wl + tes  tID | wl - tes  tID :id自动附带""  
+    /cmd :/ 开头的命令会发送给bds控制台如  
+        /say HelloWorlds  
+        /stop  
 
