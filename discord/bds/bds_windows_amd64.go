@@ -75,9 +75,6 @@ var (
     BdsStartTime time.Time
 )
 
-//    fmt.Fprintf(file, "abc123222\n")  // 向file对应文件中写入数据
-//    fmt.Fprintf(os.Stdout, "abc123222")  // 向控制台(标准输出设备)输出数据
-
 func (bds Bds)Start(bdsStartLock *bool) {
     if *bdsStartLock == true {
 	//服务器正在运行 无法再次启动
@@ -94,7 +91,7 @@ func (bds Bds)Start(bdsStartLock *bool) {
     *bdsStartLock = true
     //init player...
     Player = make(map[string]*sPlayer)
-    PlayerAdd = 0
+//    PlayerAdd = 0
 
     go func(){
         var (
@@ -194,6 +191,7 @@ bds.BdsChat <- fmt.Sprintf("%s:arrow_right:`%s`",ChatChannel,chat[i+2:len(chat)-
 		        continue
 	        }
 	        if strings.Contains(chat,mtPc) {
+                PlayerAdd++
 		        i := strings.Index(chat,mtPc)
 		        i2 := strings.Index(chat,",")
                 playerName :=  fmt.Sprintf(chat[i+18:i2])
@@ -202,7 +200,6 @@ bds.BdsChat <- fmt.Sprintf("%s:arrow_right:`%s`",ChatChannel,chat[i+2:len(chat)-
                 fmt.Println(playerName,len(playerName))
                 if _, ok := Player[playerName]; !ok {
                     //No
-                    PlayerAdd++
                     Player[playerName] = &sPlayer{}
                 }else{
                     //Yes
@@ -220,8 +217,6 @@ bds.BdsChat <- fmt.Sprintf("%s:arrow_right:`%s`",ChatChannel,chat[i+2:len(chat)-
                 delete(Player,playerName)
 		        continue
 	        }
-            //add code:
-//	        bds.BdsChat <- chat
         }
     }()
 
@@ -232,7 +227,6 @@ bds.BdsChat <- fmt.Sprintf("%s:arrow_right:`%s`",ChatChannel,chat[i+2:len(chat)-
 	    bds.BdsChat <- CmdStopErr
         if bds.CrashStart {
 	        bds.BdsChat <- CrashStart
-//            mc := Bds{bds.StartPath,bds.BdsChat,bds.CrashStart,bds.CrashStartAll,bds.LogFile,nil}
             mc := Bds{bds.StartPath,bds.BdsChat,bds.CrashStart,bds.ZeroCrashStart,nil}
             go mc.Start(bdsStartLock)
         }
@@ -240,7 +234,6 @@ bds.BdsChat <- fmt.Sprintf("%s:arrow_right:`%s`",ChatChannel,chat[i+2:len(chat)-
         *bdsStartLock = false
         if bds.ZeroCrashStart {
 	        bds.BdsChat <- CrashStart
-//            mc := Bds{bds.StartPath,bds.BdsChat,bds.CrashStart,bds.CrashStartAll,bds.LogFile,nil}
             mc := Bds{bds.StartPath,bds.BdsChat,bds.CrashStart,bds.ZeroCrashStart,nil}
             go mc.Start(bdsStartLock)
         }

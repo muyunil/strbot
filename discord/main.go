@@ -93,7 +93,6 @@ func init() {
             initErr = true
             return
         }
-//        tool.StrBotLog = true
         go tool.Log(true,logChan)
     }else{
         go tool.Log(false,logChan)

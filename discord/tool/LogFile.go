@@ -5,7 +5,6 @@ import (
     "fmt"
 )
 var (
-//    StrBotLog bool
     LogFile *os.File
 )
 func Log(on bool,logChan chan string){
