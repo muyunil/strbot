@@ -16,7 +16,7 @@
   Bot Token  
 
 备份:   
-. 灵活的Q群消息触发备份 还有Cron计划备份 修改shibot.json配置文件 设置Cron触发时间  
+. 灵活的Q群消息触发备份 还有Cron计划备份 修改shibot.yaml配置文件 设置Cron触发时间  
 Cron *  *  *  *  *  *   
 
 > 一共6个星意义和可选值分别是： 
@@ -28,9 +28,9 @@ Cron *  *  *  *  *  *
      stop :关闭bds  
      backup :备份worlds(bds未启动时无法使用)  
      lsbd :查看今天的备份存档列表  
-        可选附加time查看其他日期的备份列表如：   
-            lsbd 10/10 :即为查看10月10号的备份列表  
-     rd name-time :lsbd 获取备份列表选一个执行>    如：  
+        可选附加time查看其他日期的备份列表如：  
+        lsbd 10/10 :即为查看10月10号的备份列表  
+     rd name-time :lsbd 获取备份列表选一个执行>如：  
         rd worlds-2020-10-10_10-10-10  
         即为回滚到此name-time指向的备份存档  
         ps:bds运行时无法回滚  

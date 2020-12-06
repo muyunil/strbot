@@ -70,6 +70,7 @@ func init() {
         initErr = true
         return
     }else{
+        bds.LogChan = logChan
         bds.BdsChat = bdsChat
         bds.BackChan = backChan
         bds.StartPath = Conf.Bds.StartPath
@@ -103,7 +104,6 @@ func init() {
         go tool.Log(false,logChan)
     }
 
-    bds.LogChan = logChan
     S = dg
     fmt.Println("ok")
 }
