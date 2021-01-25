@@ -43,6 +43,7 @@ const (
     //输出
     mtPlayerChat = "Chat]"
     mtServerChat = "玩家 Server"
+    mtTmpChat = "悄悄地对"
 //    mtEzMod = "Loading_Loaded"
     //客户端连接断开输出
     mtPc  = "Player connected:"
@@ -195,6 +196,9 @@ func (bds Bds)Start(bdsStartLock *bool) {
 //{[2021-01-19 16:21:46 Chat] 玩家 muyunil
 	        if strings.Contains(chat,mtPlayerChat) {
 	            if strings.Contains(chat,mtServerChat) {
+		            continue
+                }
+	            if strings.Contains(chat,mtTmpChat) {
 		            continue
                 }
 		        i := strings.Index(chat,mtPlayerChat)
