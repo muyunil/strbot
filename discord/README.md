@@ -16,7 +16,7 @@
   Bot Token  
 
 备份:   
-. 灵活的Q群消息触发备份 还有Cron计划备份 修改shibot.yaml配置文件 设置Cron触发时间  
+. 消息触发备份 还有Cron计划备份 修改shibot.yaml配置文件 设置Cron触发时间  
 Cron *  *  *  *  *  *   
 
 > 一共6个星意义和可选值分别是： 
